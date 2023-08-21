@@ -9,15 +9,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform/internal/backend/local"
+	"github.com/hashicorp/terraform/internal/cloud"
 	"github.com/hashicorp/terraform/internal/command/arguments"
+	"github.com/hashicorp/terraform/internal/command/jsonformat"
 	"github.com/hashicorp/terraform/internal/command/views"
 	"github.com/hashicorp/terraform/internal/logging"
 	"github.com/hashicorp/terraform/internal/moduletest"
 	"github.com/hashicorp/terraform/internal/tfdiags"
-)
-
-const (
-	MainStateIdentifier = ""
 )
 
 type TestCommand struct {
@@ -145,7 +143,27 @@ func (c *TestCommand) Run(rawArgs []string) int {
 
 	var runner moduletest.TestSuiteRunner
 	if len(args.CloudRunSource) > 0 {
-		panic("Cloud runs are not yet supported.")
+		runner = &cloud.TestSuiteRunner{
+			ConfigDirectory:  ".", // Always loading from the current directory.
+			TestingDirectory: args.TestDirectory,
+			Config:           config,
+			Services:         c.Services,
+			Source:           args.CloudRunSource,
+			GlobalVariables:  variables,
+			Stopped:          false,
+			Cancelled:        false,
+			StoppedCtx:       stopCtx,
+			CancelledCtx:     cancelCtx,
+			Verbose:          args.Verbose,
+			Filter:           args.Filter,
+			Renderer: &jsonformat.Renderer{
+				Streams:             c.Streams,
+				Colorize:            c.Colorize(),
+				RunningInAutomation: c.RunningInAutomation,
+			},
+			View:    view,
+			Streams: c.Streams,
+		}
 	} else {
 		runner = &local.TestSuiteRunner{
 			Config:          config,
